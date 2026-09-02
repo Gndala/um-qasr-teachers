@@ -10,7 +10,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
-    getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy
+    getFirestore, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy, where
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -25,12 +25,12 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  window.__fb = { db, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy };
+  window.__fb = { db, collection, addDoc, getDocs, deleteDoc, updateDoc, doc, serverTimestamp, query, orderBy, where };
   window.dispatchEvent(new Event('firebase-ready'));
 </script>
 
-<!-- SheetJS for Excel export -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- ExcelJS for Excel export with embedded images -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 
 <style>
   :root{
@@ -95,6 +95,30 @@
     border-bottom:2px solid var(--gold);
   }
   .section-title:first-child{margin-top:0;}
+
+  .progress-bar{
+    position:sticky;top:0;z-index:5;
+    display:flex;justify-content:space-between;
+    background:#fff;padding:10px 2px 12px;
+    margin:-22px -18px 10px;
+    border-bottom:1px solid var(--border);
+  }
+  .progress-bar .step{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    text-decoration:none;color:var(--muted);
+  }
+  .progress-bar .dot{
+    width:26px;height:26px;border-radius:50%;
+    background:#e9edf3;color:var(--muted);
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:800;
+    border:2px solid #e9edf3;transition:.2s;
+  }
+  .progress-bar .lbl{font-size:10px;font-weight:700;}
+  .progress-bar .step.active .dot{background:var(--navy-2);border-color:var(--navy-2);color:#fff;}
+  .progress-bar .step.active .lbl{color:var(--navy-2);}
+  .progress-bar .step.current .dot{background:var(--gold);border-color:var(--gold);color:var(--navy);}
+  .progress-bar .step.current .lbl{color:var(--navy);font-weight:800;}
   .section-title .num{
     background:var(--navy);color:#fff;
     width:24px;height:24px;border-radius:50%;
@@ -213,6 +237,47 @@
   .modal-box .go{background:var(--navy);color:#fff;}
   .modal-box .err{color:var(--danger);font-size:13px;min-height:18px;margin-bottom:6px;}
 
+  .success-box{max-width:360px;}
+  .success-icon{
+    width:56px;height:56px;border-radius:50%;
+    background:#e6f4ea;color:var(--ok);
+    display:flex;align-items:center;justify-content:center;
+    font-size:28px;font-weight:800;margin:0 auto 12px;
+  }
+  .success-name{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:6px;}
+  .ref-box{
+    background:linear-gradient(180deg,var(--navy-2),var(--navy));
+    border-radius:12px;padding:12px 14px;margin-bottom:12px;
+    display:flex;flex-direction:column;gap:4px;
+  }
+  .ref-label{font-size:11px;color:var(--gold-2);font-weight:700;}
+  .ref-value{font-size:19px;color:#fff;font-weight:800;letter-spacing:1px;direction:ltr;}
+  .success-meta{font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:10px;}
+  .success-note{font-size:12.5px;color:var(--muted);margin-bottom:16px;}
+
+  .detail-box{max-width:480px;text-align:right;max-height:85vh;display:flex;flex-direction:column;}
+  .detail-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .detail-header h3{margin:0;}
+  .detail-close{background:#eee;border:none;border-radius:8px;width:30px;height:30px;font-size:14px;cursor:pointer;}
+  .detail-body{overflow-y:auto;padding-inline-end:4px;}
+  .detail-row{
+    display:flex;justify-content:space-between;gap:12px;
+    padding:8px 0;border-bottom:1px solid var(--border);
+    font-size:13.5px;
+  }
+  .detail-row .dl{color:var(--muted);font-weight:600;flex-shrink:0;}
+  .detail-row .dv{color:var(--text);font-weight:700;text-align:left;}
+
+  .edit-box{max-width:600px;text-align:right;max-height:85vh;display:flex;flex-direction:column;}
+  .edit-grid{overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;padding-inline-end:4px;}
+  @media(max-width:560px){.edit-grid{grid-template-columns:1fr;}}
+  .edit-grid .field{margin-bottom:0;}
+  .edit-grid label{display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+  .edit-grid input, .edit-grid select{
+    width:100%;padding:9px 10px;border:1.5px solid var(--border);
+    border-radius:8px;font-size:13px;font-family:inherit;
+  }
+
   #adminPanel{
     display:none;
     position:fixed;
@@ -240,6 +305,25 @@
 
   .admin-body{padding:14px 12px;max-width:1200px;margin:0 auto;}
   .admin-stats{font-size:13.5px;color:var(--muted);margin-bottom:12px;padding:0 4px;}
+  .admin-search{
+    width:100%;padding:11px 14px;margin-bottom:14px;
+    border:1.5px solid var(--border);border-radius:10px;
+    font-size:14px;font-family:inherit;background:#fff;
+  }
+  .admin-search:focus{outline:none;border-color:var(--navy-2);box-shadow:0 0 0 3px rgba(18,58,107,0.12);}
+  .admin-table th.sortable{cursor:pointer;user-select:none;white-space:nowrap;}
+  .admin-table th.sortable:hover{background:rgba(255,255,255,0.1);}
+  .admin-table th.sortable::after{content:'⇅';opacity:.5;font-size:11px;margin-inline-start:4px;}
+  .admin-table th.sort-asc::after{content:'↑';opacity:1;}
+  .admin-table th.sort-desc::after{content:'↓';opacity:1;}
+  .row-actions{display:flex;gap:6px;white-space:nowrap;}
+  .row-actions button{
+    padding:6px 10px;border-radius:8px;border:none;
+    font-size:12px;font-weight:700;cursor:pointer;
+  }
+  .row-actions .viewBtn{background:#e8eef7;color:var(--navy-2);}
+  .row-actions .editBtn{background:#fdf3d9;color:#8a6d00;}
+  .row-actions .delBtn{background:#fbe9e7;color:var(--danger);}
   .table-wrap{overflow-x:auto;background:#fff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.06);}
   table.admin-table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap;}
   table.admin-table th{
@@ -249,10 +333,6 @@
   table.admin-table td{padding:9px 12px;border-bottom:1px solid var(--border);}
   table.admin-table tr:hover td{background:#f7f9fc;}
   table.admin-table img.thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;}
-  .row-actions button{
-    background:var(--danger);color:#fff;border:none;
-    padding:6px 10px;border-radius:7px;font-size:12px;cursor:pointer;
-  }
   .empty-state{text-align:center;color:var(--muted);padding:40px 10px;}
   .loading{text-align:center;color:var(--muted);padding:30px;}
 </style>
@@ -272,11 +352,19 @@
   <div class="card">
     <form id="teacherForm" autocomplete="off">
 
+      <div class="progress-bar" id="progressBar">
+        <a href="#sec1" class="step" data-step="1"><span class="dot">1</span><span class="lbl">شخصية</span></a>
+        <a href="#sec2" class="step" data-step="2"><span class="dot">2</span><span class="lbl">العنوان</span></a>
+        <a href="#sec3" class="step" data-step="3"><span class="dot">3</span><span class="lbl">وظيفية</span></a>
+        <a href="#sec4" class="step" data-step="4"><span class="dot">4</span><span class="lbl">طوارئ</span></a>
+        <a href="#sec5" class="step" data-step="5"><span class="dot">5</span><span class="lbl">الصورة</span></a>
+      </div>
+
       <div class="msg" style="display:block;background:#eef3fa;color:var(--navy-2);margin-bottom:18px;">
         ملاحظة: الحقول التي تحمل علامة <b class="req" style="color:var(--danger);">*</b> إلزامية، أما باقي الحقول فهي اختيارية وليست ضرورية لتعبئتها.
       </div>
 
-      <div class="section-title"><span class="num">1</span> البيانات الشخصية</div>
+      <div class="section-title" id="sec1"><span class="num">1</span> البيانات الشخصية</div>
 
       <div class="field">
         <label>الاسم الرباعي واللقب <span class="req">*</span></label>
@@ -311,11 +399,12 @@
       <div class="row2">
         <div class="field">
           <label>رقم الهاتف <span class="req">*</span></label>
-          <input type="tel" id="phone" required placeholder="07xxxxxxxxx">
+          <input type="tel" id="phone" required placeholder="07xxxxxxxxx" pattern="07[0-9]{9}" maxlength="11" inputmode="numeric" title="رقم هاتف عراقي صحيح مثل 07701234567">
+          <div class="hint">11 رقم يبدأ بـ 07</div>
         </div>
         <div class="field">
           <label>رقم البطاقة الموحدة <span class="req">*</span></label>
-          <input type="text" id="unifiedCard" required placeholder="رقم البطاقة الوطنية الموحدة">
+          <input type="text" id="unifiedCard" required placeholder="رقم البطاقة الوطنية الموحدة" pattern="[0-9]{6,15}" inputmode="numeric" title="أرقام فقط، من 6 إلى 15 رقم">
         </div>
       </div>
 
@@ -324,7 +413,7 @@
         <input type="text" id="email" placeholder="البريد الإلكتروني (اختياري)">
       </div>
 
-      <div class="section-title"><span class="num">2</span> العنوان</div>
+      <div class="section-title" id="sec2"><span class="num">2</span> العنوان</div>
 
       <div class="row2">
         <div class="field">
@@ -358,7 +447,7 @@
         <input type="text" id="landmark" required placeholder="مثال: قرب جامع.. / مقابل مدرسة..">
       </div>
 
-      <div class="section-title"><span class="num">3</span> البيانات الوظيفية</div>
+      <div class="section-title" id="sec3"><span class="num">3</span> البيانات الوظيفية</div>
 
       <div class="field">
         <label>التصنيف <span class="req">*</span></label>
@@ -467,58 +556,75 @@
           <input type="date" id="appointmentDate" required>
         </div>
         <div class="field">
+          <label>الشهادة <span class="req">*</span></label>
+          <select id="qualification" required>
+            <option value="" disabled selected>اختر الشهادة</option>
+            <option>ابتدائية</option>
+            <option>متوسطة</option>
+            <option>اعدادية</option>
+            <option>دبلوم</option>
+            <option>بكالوريوس</option>
+            <option>دراسات عليا (ماجستير/دكتوراه)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="higherEduWrap" style="display:none;">
+        <div class="field">
           <label>سنة التخرج</label>
           <input type="text" id="graduationYear" inputmode="numeric" placeholder="مثال: 2015 (اختياري)">
         </div>
-      </div>
 
-      <div class="row2">
-        <div class="field">
-          <label>الجامعة <span class="req">*</span></label>
-          <input type="text" id="university" required placeholder="اسم الجامعة">
+        <div class="row2">
+          <div class="field">
+            <label>الجامعة <span class="req">*</span></label>
+            <input type="text" id="university" placeholder="اسم الجامعة">
+          </div>
+          <div class="field">
+            <label>الكلية</label>
+            <input type="text" id="college" placeholder="اسم الكلية (اختياري)">
+          </div>
         </div>
+
         <div class="field">
-          <label>الكلية</label>
-          <input type="text" id="college" placeholder="اسم الكلية (اختياري)">
+          <label>الاختصاص</label>
+          <input type="text" id="specialization" placeholder="الاختصاص العام/الدقيق (اختياري)">
         </div>
       </div>
 
-      <div class="field">
-        <label>الاختصاص</label>
-        <input type="text" id="specialization" placeholder="الاختصاص العام/الدقيق (اختياري)">
+      <div id="subjectWrap">
+        <div class="field">
+          <label>المادة التي يدرسها <span class="req">*</span></label>
+          <select id="subject">
+            <option value="" disabled selected>اختر المادة</option>
+            <option>التربية الإسلامية</option>
+            <option>اللغة العربية</option>
+            <option>اللغة الإنكليزية</option>
+            <option>الرياضيات</option>
+            <option>الأحياء</option>
+            <option>الكيمياء</option>
+            <option>الفيزياء</option>
+            <option>الجغرافية</option>
+            <option>التاريخ</option>
+            <option>الاقتصاد</option>
+            <option>الفلسفة</option>
+            <option>علم الاجتماع</option>
+            <option>الجرائم</option>
+            <option>التربية الرياضية</option>
+            <option>التربية الفنية</option>
+            <option>الحاسوب</option>
+            <option>اللغة الفرنسية</option>
+            <option>أخرى</option>
+          </select>
+        </div>
+
+        <div class="field" id="otherSubjectWrap" style="display:none;">
+          <label>حدد اسم المادة</label>
+          <input type="text" id="otherSubject" placeholder="اكتب اسم المادة">
+        </div>
       </div>
 
-      <div class="field">
-        <label>المادة التي يدرسها <span class="req">*</span></label>
-        <select id="subject" required>
-          <option value="" disabled selected>اختر المادة</option>
-          <option>التربية الإسلامية</option>
-          <option>اللغة العربية</option>
-          <option>اللغة الإنكليزية</option>
-          <option>الرياضيات</option>
-          <option>الأحياء</option>
-          <option>الكيمياء</option>
-          <option>الفيزياء</option>
-          <option>الجغرافية</option>
-          <option>التاريخ</option>
-          <option>الاقتصاد</option>
-          <option>الفلسفة</option>
-          <option>علم الاجتماع</option>
-          <option>الجرائم</option>
-          <option>التربية الرياضية</option>
-          <option>التربية الفنية</option>
-          <option>الحاسوب</option>
-          <option>اللغة الفرنسية</option>
-          <option>أخرى</option>
-        </select>
-      </div>
-
-      <div class="field" id="otherSubjectWrap" style="display:none;">
-        <label>حدد اسم المادة</label>
-        <input type="text" id="otherSubject" placeholder="اكتب اسم المادة">
-      </div>
-
-      <div class="section-title"><span class="num">4</span> جهة الاتصال في حالات الطوارئ</div>
+      <div class="section-title" id="sec4"><span class="num">4</span> جهة الاتصال في حالات الطوارئ</div>
 
       <div class="field">
         <label>اسم جهة الاتصال</label>
@@ -532,14 +638,14 @@
         </div>
         <div class="field">
           <label>رقم هاتف جهة الاتصال</label>
-          <input type="tel" id="emergencyPhone" placeholder="07xxxxxxxxx (اختياري)">
+          <input type="tel" id="emergencyPhone" placeholder="07xxxxxxxxx (اختياري)" pattern="07[0-9]{9}" maxlength="11" inputmode="numeric" title="رقم هاتف عراقي صحيح مثل 07701234567">
         </div>
       </div>
 
-      <div class="section-title"><span class="num">5</span> الصورة الشخصية</div>
+      <div class="section-title" id="sec5"><span class="num">5</span> الصورة الشخصية</div>
 
       <div class="field">
-        <label>صورة شخصية واضحة (حديثة)</label>
+        <label>صورة شخصية واضحة (حديثة) <span class="req">*</span></label>
         <div class="photo-box" id="photoBox">
           <input type="file" id="photoInput" accept="image/*" capture="environment">
           <div id="photoPlaceholder">
@@ -560,6 +666,22 @@
     وزارة التربية — مديرية تربية البصرة — قضاء الزبير<br>
     من تصميم: <b>علي محمد دينار</b>
   </footer>
+</div>
+
+<!-- Success confirmation overlay -->
+<div class="modal-overlay" id="successOverlay">
+  <div class="modal-box success-box">
+    <div class="success-icon">✔</div>
+    <h3>تم إرسال بياناتك بنجاح</h3>
+    <div class="success-name" id="successName"></div>
+    <div class="ref-box">
+      <span class="ref-label">الرقم المرجعي للاستمارة</span>
+      <span class="ref-value" id="successRef"></span>
+    </div>
+    <div class="success-meta" id="successMeta"></div>
+    <div class="success-note">احتفظ بالرقم المرجعي أعلاه، تحتاجه لمتابعة استمارتك أو أي استفسار لاحقاً.</div>
+    <button class="go" id="successClose" style="width:100%;">تم ✔</button>
+  </div>
 </div>
 
 <!-- Admin floating button -->
@@ -590,50 +712,79 @@
   </div>
   <div class="admin-body">
     <div class="admin-stats" id="adminStats"></div>
+    <input type="text" id="adminSearch" class="admin-search" placeholder="🔍 بحث بالاسم / الهاتف / المادة / العنوان الوظيفي...">
     <div class="table-wrap">
       <table class="admin-table" id="adminTable">
         <thead>
           <tr>
+            <th class="sortable" data-key="referenceNumber">الرقم المرجعي</th>
             <th>الصورة</th>
-            <th>الاسم الرباعي</th>
-            <th>اسم الأم</th>
-            <th>الجنس</th>
-            <th>الجنسية</th>
-            <th>مسقط الرأس</th>
-            <th>التصنيف</th>
-            <th>الرقم الوظيفي</th>
-            <th>الرقم العائلي</th>
-            <th>نوع التوظيف</th>
-            <th>العنوان الوظيفي</th>
-            <th>الدرجة الوظيفية</th>
-            <th>المسمى الوظيفي</th>
-            <th>المنصب الحالي</th>
-            <th>الحالة الاجتماعية</th>
-            <th>تاريخ اول تعيين</th>
-            <th>سنة التخرج</th>
-            <th>الجامعة</th>
-            <th>الكلية</th>
-            <th>الاختصاص</th>
-            <th>المادة</th>
-            <th>الحي</th>
-            <th>المحلة</th>
-            <th>الزقاق</th>
+            <th class="sortable" data-key="fullName">الاسم الرباعي</th>
+            <th class="sortable" data-key="motherName">اسم الأم</th>
+            <th class="sortable" data-key="gender">الجنس</th>
+            <th class="sortable" data-key="nationality">الجنسية</th>
+            <th class="sortable" data-key="birthPlace">مسقط الرأس</th>
+            <th class="sortable" data-key="classification">التصنيف</th>
+            <th class="sortable" data-key="employeeNumber">الرقم الوظيفي</th>
+            <th class="sortable" data-key="familyNumber">الرقم العائلي</th>
+            <th class="sortable" data-key="employmentType">نوع التوظيف</th>
+            <th class="sortable" data-key="jobTitle">العنوان الوظيفي</th>
+            <th class="sortable" data-key="jobGrade">الدرجة الوظيفية</th>
+            <th class="sortable" data-key="jobDesignation">المسمى الوظيفي</th>
+            <th class="sortable" data-key="currentPosition">المنصب الحالي</th>
+            <th class="sortable" data-key="maritalStatus">الحالة الاجتماعية</th>
+            <th class="sortable" data-key="appointmentDate">تاريخ اول تعيين</th>
+            <th class="sortable" data-key="graduationYear">سنة التخرج</th>
+            <th class="sortable" data-key="qualification">الشهادة</th>
+            <th class="sortable" data-key="university">الجامعة</th>
+            <th class="sortable" data-key="college">الكلية</th>
+            <th class="sortable" data-key="specialization">الاختصاص</th>
+            <th class="sortable" data-key="subject">المادة</th>
+            <th class="sortable" data-key="district">الحي</th>
+            <th class="sortable" data-key="mahalla">المحلة</th>
+            <th class="sortable" data-key="alley">الزقاق</th>
             <th>العنوان الكامل</th>
             <th>أقرب نقطة دالة</th>
-            <th>الهاتف</th>
-            <th>البطاقة الموحدة</th>
+            <th class="sortable" data-key="phone">الهاتف</th>
+            <th class="sortable" data-key="unifiedCard">البطاقة الموحدة</th>
             <th>البريد الإلكتروني</th>
             <th>جهة اتصال الطوارئ</th>
             <th>صلة القرابة</th>
             <th>هاتف الطوارئ</th>
-            <th>التاريخ</th>
-            <th>حذف</th>
+            <th class="sortable" data-key="createdAt">التاريخ</th>
+            <th>إجراءات</th>
           </tr>
         </thead>
         <tbody id="adminTbody">
-          <tr><td colspan="34" class="loading">جارِ التحميل...</td></tr>
+          <tr><td colspan="36" class="loading">جارِ التحميل...</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detail view modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-box detail-box">
+    <div class="detail-header">
+      <h3>تفاصيل الاستمارة</h3>
+      <button class="detail-close" id="detailClose">✕</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box edit-box">
+    <div class="detail-header">
+      <h3>تعديل بيانات المدرس</h3>
+      <button class="detail-close" id="editClose">✕</button>
+    </div>
+    <div class="edit-grid" id="editFormFields"></div>
+    <div class="actions" style="display:flex;gap:10px;margin-top:6px;">
+      <button class="cancel" id="editCancel" style="flex:1;">إلغاء</button>
+      <button class="go" id="editSave" style="flex:1;">حفظ التعديلات</button>
     </div>
   </div>
 </div>
@@ -693,10 +844,115 @@ jobSel.addEventListener('change', () => {
   otherJobWrap.style.display = jobSel.value === 'أخرى' ? 'block' : 'none';
 });
 
+/* ---------- Classification: show/hide "subject" for موظف vs معلم ---------- */
+const classificationSel = document.getElementById('classification');
+const subjectWrap = document.getElementById('subjectWrap');
+
+function applyClassificationRules(){
+  const isEmployee = classificationSel.value === 'موظف';
+  subjectWrap.style.display = isEmployee ? 'none' : 'block';
+  subjectSel.required = !isEmployee;
+  if (isEmployee){
+    subjectSel.value = '';
+    otherWrap.style.display = 'none';
+  }
+}
+classificationSel.addEventListener('change', applyClassificationRules);
+applyClassificationRules();
+
+/* ---------- Qualification: show/hide university/college/specialization ---------- */
+const qualificationSel = document.getElementById('qualification');
+const higherEduWrap = document.getElementById('higherEduWrap');
+const universityInput = document.getElementById('university');
+
+function applyQualificationRules(){
+  const needsHigherEdu = ['دبلوم', 'بكالوريوس', 'دراسات عليا (ماجستير/دكتوراه)'].includes(qualificationSel.value);
+  higherEduWrap.style.display = needsHigherEdu ? 'block' : 'none';
+  universityInput.required = needsHigherEdu;
+  if (!needsHigherEdu){
+    universityInput.value = '';
+    document.getElementById('college').value = '';
+    document.getElementById('specialization').value = '';
+    document.getElementById('graduationYear').value = '';
+  }
+}
+qualificationSel.addEventListener('change', applyQualificationRules);
+applyQualificationRules();
+
 /* ---------- Form submit ---------- */
 const form = document.getElementById('teacherForm');
 const submitBtn = document.getElementById('submitBtn');
 const formMsg = document.getElementById('formMsg');
+const successOverlay = document.getElementById('successOverlay');
+const successName = document.getElementById('successName');
+const successMeta = document.getElementById('successMeta');
+const successRef = document.getElementById('successRef');
+document.getElementById('successClose').addEventListener('click', () => {
+  successOverlay.classList.remove('show');
+});
+
+/* ---------- Draft autosave (text fields only, not photo) ---------- */
+const DRAFT_KEY = 'umQasrTeacherDraft';
+const draftFields = ['fullName','motherName','gender','nationality','birthPlace','phone','unifiedCard','email',
+  'district','mahalla','alley','houseNo','fullAddress','landmark','classification','employeeNumber','familyNumber',
+  'employmentType','jobTitle','otherJob','jobGrade','jobDesignation','currentPosition','maritalStatus',
+  'appointmentDate','qualification','graduationYear','university','college','specialization','subject','otherSubject',
+  'emergencyName','emergencyRelation','emergencyPhone'];
+
+function saveDraft(){
+  const draft = {};
+  draftFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) draft[id] = el.value;
+  });
+  try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); }catch(e){}
+}
+
+function restoreDraft(){
+  let draft;
+  try{ draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); }catch(e){ draft = null; }
+  if (!draft) return;
+  draftFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && draft[id]) el.value = draft[id];
+  });
+  if (typeof applyClassificationRules === 'function') applyClassificationRules();
+  if (typeof applyQualificationRules === 'function') applyQualificationRules();
+  if (subjectSel.value === 'أخرى') otherWrap.style.display = 'block';
+  if (jobSel.value === 'أخرى') otherJobWrap.style.display = 'block';
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(DRAFT_KEY); }catch(e){}
+}
+
+form.addEventListener('input', () => { saveDraft(); });
+window.addEventListener('load', restoreDraft);
+
+/* ---------- Progress bar (section tracking) ---------- */
+const progressSteps = document.querySelectorAll('#progressBar .step');
+const progressSections = ['sec1','sec2','sec3','sec4','sec5'].map(id => document.getElementById(id));
+const sectionObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    const idx = progressSections.indexOf(entry.target);
+    if (idx === -1) return;
+    progressSteps.forEach((el,i) => {
+      el.classList.toggle('active', i <= idx);
+      el.classList.toggle('current', i === idx);
+    });
+  });
+}, { rootMargin: '-15% 0px -70% 0px' });
+progressSections.forEach(el => el && sectionObserver.observe(el));
+
+function generateReferenceNumber(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const d = String(now.getDate()).padStart(2,'0');
+  const rand = Math.floor(100 + Math.random()*900);
+  return `UQ-${y}${m}${d}-${rand}`;
+}
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -707,6 +963,42 @@ form.addEventListener('submit', async (e) => {
     formMsg.className = 'msg err';
     formMsg.textContent = 'جارِ الاتصال بالخادم، أعد المحاولة خلال ثوانٍ';
     formMsg.style.display = 'block';
+    return;
+  }
+
+  if (!photoBase64){
+    formMsg.className = 'msg err';
+    formMsg.textContent = 'الرجاء إضافة الصورة الشخصية قبل الإرسال';
+    formMsg.style.display = 'block';
+    window.scrollTo({top: photoBox.getBoundingClientRect().top + window.scrollY - 100, behavior:'smooth'});
+    return;
+  }
+
+  const unifiedCardVal = document.getElementById('unifiedCard').value.trim();
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'جارِ التحقق من البيانات...';
+
+  try{
+    const dupQ = fb.query(fb.collection(fb.db, COLLECTION_NAME), fb.where('unifiedCard', '==', unifiedCardVal));
+    const dupSnap = await fb.getDocs(dupQ);
+    if (!dupSnap.empty){
+      const existing = dupSnap.docs[0].data();
+      formMsg.className = 'msg err';
+      formMsg.textContent = `⚠ هذا الرقم للبطاقة الموحدة مسجل مسبقاً باسم "${existing.fullName || '-'}". إذا كانت هذه معلوماتك وتريد تعديلها راجع إدارة المدرسة.`;
+      formMsg.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'إرسال الاستمارة ✔';
+      window.scrollTo({top:0, behavior:'smooth'});
+      return;
+    }
+  }catch(err){
+    console.error(err);
+    formMsg.className = 'msg err';
+    formMsg.textContent = 'تعذّر التحقق من البيانات، تحقق من الاتصال بالإنترنت وحاول مرة أخرى.';
+    formMsg.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'إرسال الاستمارة ✔';
     return;
   }
 
@@ -722,7 +1014,10 @@ form.addEventListener('submit', async (e) => {
     if (otherJobVal) jobVal = otherJobVal;
   }
 
+  const referenceNumber = generateReferenceNumber();
+
   const data = {
+    referenceNumber,
     fullName: document.getElementById('fullName').value.trim(),
     motherName: document.getElementById('motherName').value.trim(),
     gender: document.getElementById('gender').value,
@@ -748,6 +1043,7 @@ form.addEventListener('submit', async (e) => {
     maritalStatus: document.getElementById('maritalStatus').value,
     appointmentDate: document.getElementById('appointmentDate').value,
     graduationYear: document.getElementById('graduationYear').value.trim(),
+    qualification: document.getElementById('qualification').value,
     university: document.getElementById('university').value.trim(),
     college: document.getElementById('college').value.trim(),
     specialization: document.getElementById('specialization').value.trim(),
@@ -764,16 +1060,26 @@ form.addEventListener('submit', async (e) => {
 
   try{
     await fb.addDoc(fb.collection(fb.db, COLLECTION_NAME), data);
-    formMsg.className = 'msg ok';
-    formMsg.textContent = '✔ تم إرسال بياناتك بنجاح. شكراً لك.';
-    formMsg.style.display = 'block';
+
+    successName.textContent = data.fullName || '-';
+    successRef.textContent = data.referenceNumber;
+    successMeta.innerHTML = `
+      ${data.jobTitle ? `العنوان الوظيفي: <b>${esc(data.jobTitle)}</b><br>` : ''}
+      ${data.phone ? `رقم الهاتف: <b>${esc(data.phone)}</b><br>` : ''}
+      رقم البطاقة الموحدة: <b>${esc(data.unifiedCard)}</b>
+    `;
+    successOverlay.classList.add('show');
+
     form.reset();
+    clearDraft();
     photoBase64 = "";
     photoBox.classList.remove('has-img');
     photoBox.innerHTML = `<div class="icon">📷</div><div class="txt">اضغط هنا لاختيار / التقاط صورة</div>`;
     photoBox.appendChild(photoInput);
     otherWrap.style.display = 'none';
     otherJobWrap.style.display = 'none';
+    applyClassificationRules();
+    applyQualificationRules();
     window.scrollTo({top:0, behavior:'smooth'});
   }catch(err){
     console.error(err);
@@ -796,6 +1102,7 @@ const pwCancel = document.getElementById('pwCancel');
 const adminPanel = document.getElementById('adminPanel');
 const adminTbody = document.getElementById('adminTbody');
 const adminStats = document.getElementById('adminStats');
+const adminSearch = document.getElementById('adminSearch');
 
 let cachedDocs = [];
 
@@ -825,129 +1132,365 @@ document.getElementById('btnCloseAdmin').addEventListener('click', () => {
 });
 document.getElementById('btnRefresh').addEventListener('click', loadAdminData);
 
+let sortKey = null;
+let sortDir = 1;
+
 async function loadAdminData(){
-  adminTbody.innerHTML = '<tr><td colspan="14" class="loading">جارِ التحميل...</td></tr>';
+  adminTbody.innerHTML = '<tr><td colspan="36" class="loading">جارِ التحميل...</td></tr>';
   if (!fb){ setTimeout(loadAdminData, 500); return; }
   try{
     const q = fb.query(fb.collection(fb.db, COLLECTION_NAME), fb.orderBy('createdAt','desc'));
     const snap = await fb.getDocs(q);
     cachedDocs = [];
     snap.forEach(d => cachedDocs.push({id: d.id, ...d.data()}));
-
-    adminStats.textContent = `عدد الاستمارات المسجلة: ${cachedDocs.length}`;
-
-    if (cachedDocs.length === 0){
-      adminTbody.innerHTML = '<tr><td colspan="34" class="empty-state">لا توجد استمارات مسجلة بعد</td></tr>';
-      return;
-    }
-
-    adminTbody.innerHTML = cachedDocs.map(t => {
-      const date = t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toLocaleDateString('ar-IQ') : '-';
-      return `<tr>
-        <td>${t.photo ? `<img class="thumb" src="${t.photo}">` : '-'}</td>
-        <td>${esc(t.fullName)}</td>
-        <td>${esc(t.motherName)}</td>
-        <td>${esc(t.gender)}</td>
-        <td>${esc(t.nationality)}</td>
-        <td>${esc(t.birthPlace)}</td>
-        <td>${esc(t.classification)}</td>
-        <td>${esc(t.employeeNumber)}</td>
-        <td>${esc(t.familyNumber)}</td>
-        <td>${esc(t.employmentType)}</td>
-        <td>${esc(t.jobTitle)}</td>
-        <td>${esc(t.jobGrade)}</td>
-        <td>${esc(t.jobDesignation)}</td>
-        <td>${esc(t.currentPosition)}</td>
-        <td>${esc(t.maritalStatus)}</td>
-        <td>${esc(t.appointmentDate)}</td>
-        <td>${esc(t.graduationYear)}</td>
-        <td>${esc(t.university)}</td>
-        <td>${esc(t.college)}</td>
-        <td>${esc(t.specialization)}</td>
-        <td>${esc(t.subject)}</td>
-        <td>${esc(t.district)}</td>
-        <td>${esc(t.mahalla)}</td>
-        <td>${esc(t.alley)}</td>
-        <td>${esc(t.fullAddress)}</td>
-        <td>${esc(t.landmark)}</td>
-        <td>${esc(t.phone)}</td>
-        <td>${esc(t.unifiedCard)}</td>
-        <td>${esc(t.email)}</td>
-        <td>${esc(t.emergencyName)}</td>
-        <td>${esc(t.emergencyRelation)}</td>
-        <td>${esc(t.emergencyPhone)}</td>
-        <td>${date}</td>
-        <td class="row-actions"><button data-id="${t.id}" class="delBtn">حذف</button></td>
-      </tr>`;
-    }).join('');
-
-    document.querySelectorAll('.delBtn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('هل أنت متأكد من حذف هذا السجل؟')) return;
-        try{
-          await fb.deleteDoc(fb.doc(fb.db, COLLECTION_NAME, btn.dataset.id));
-          loadAdminData();
-        }catch(err){ alert('فشل الحذف: ' + err.message); }
-      });
-    });
-
+    adminSearch.value = '';
+    sortKey = null; sortDir = 1;
+    document.querySelectorAll('#adminTable th.sortable').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+    updateAdminView();
   }catch(err){
     console.error(err);
-    adminTbody.innerHTML = `<tr><td colspan="34" class="empty-state">حدث خطأ في تحميل البيانات: ${err.message}</td></tr>`;
+    adminTbody.innerHTML = `<tr><td colspan="36" class="empty-state">حدث خطأ في تحميل البيانات: ${err.message}</td></tr>`;
   }
 }
+
+function updateAdminView(){
+  let list = cachedDocs;
+  const term = adminSearch.value.trim().toLowerCase();
+  if (term){
+    list = list.filter(t => ['fullName','motherName','phone','unifiedCard','jobTitle','subject','district','mahalla','employeeNumber']
+      .some(key => String(t[key] || '').toLowerCase().includes(term)));
+  }
+  if (sortKey){
+    list = [...list].sort((a,b) => {
+      let av, bv;
+      if (sortKey === 'createdAt'){
+        av = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().getTime() : 0;
+        bv = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate().getTime() : 0;
+      } else {
+        av = String(a[sortKey] || '').toLowerCase();
+        bv = String(b[sortKey] || '').toLowerCase();
+      }
+      if (av < bv) return -1 * sortDir;
+      if (av > bv) return 1 * sortDir;
+      return 0;
+    });
+  }
+  renderAdminRows(list);
+}
+
+document.querySelectorAll('#adminTable th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+    document.querySelectorAll('#adminTable th.sortable').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+    th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+    updateAdminView();
+  });
+});
+
+function renderAdminRows(list){
+  adminStats.textContent = `عدد الاستمارات المسجلة: ${cachedDocs.length}` + (list.length !== cachedDocs.length ? ` (المعروض: ${list.length})` : '');
+
+  if (list.length === 0){
+    adminTbody.innerHTML = `<tr><td colspan="36" class="empty-state">${cachedDocs.length === 0 ? 'لا توجد استمارات مسجلة بعد' : 'لا توجد نتائج مطابقة للبحث'}</td></tr>`;
+    return;
+  }
+
+  adminTbody.innerHTML = list.map(t => {
+    const date = t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toLocaleDateString('ar-IQ') : '-';
+    return `<tr>
+      <td style="font-weight:700;direction:ltr;">${esc(t.referenceNumber) || '-'}</td>
+      <td>${t.photo ? `<img class="thumb" src="${t.photo}">` : '-'}</td>
+      <td>${esc(t.fullName)}</td>
+      <td>${esc(t.motherName)}</td>
+      <td>${esc(t.gender)}</td>
+      <td>${esc(t.nationality)}</td>
+      <td>${esc(t.birthPlace)}</td>
+      <td>${esc(t.classification)}</td>
+      <td>${esc(t.employeeNumber)}</td>
+      <td>${esc(t.familyNumber)}</td>
+      <td>${esc(t.employmentType)}</td>
+      <td>${esc(t.jobTitle)}</td>
+      <td>${esc(t.jobGrade)}</td>
+      <td>${esc(t.jobDesignation)}</td>
+      <td>${esc(t.currentPosition)}</td>
+      <td>${esc(t.maritalStatus)}</td>
+      <td>${esc(t.appointmentDate)}</td>
+      <td>${esc(t.graduationYear)}</td>
+      <td>${esc(t.qualification)}</td>
+      <td>${esc(t.university)}</td>
+      <td>${esc(t.college)}</td>
+      <td>${esc(t.specialization)}</td>
+      <td>${esc(t.subject)}</td>
+      <td>${esc(t.district)}</td>
+      <td>${esc(t.mahalla)}</td>
+      <td>${esc(t.alley)}</td>
+      <td>${esc(t.fullAddress)}</td>
+      <td>${esc(t.landmark)}</td>
+      <td>${esc(t.phone)}</td>
+      <td>${esc(t.unifiedCard)}</td>
+      <td>${esc(t.email)}</td>
+      <td>${esc(t.emergencyName)}</td>
+      <td>${esc(t.emergencyRelation)}</td>
+      <td>${esc(t.emergencyPhone)}</td>
+      <td>${date}</td>
+      <td class="row-actions">
+        <button data-id="${t.id}" class="viewBtn">عرض</button>
+        <button data-id="${t.id}" class="editBtn">تعديل</button>
+        <button data-id="${t.id}" class="delBtn">حذف</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('.delBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('هل أنت متأكد من حذف هذا السجل؟')) return;
+      try{
+        await fb.deleteDoc(fb.doc(fb.db, COLLECTION_NAME, btn.dataset.id));
+        loadAdminData();
+      }catch(err){ alert('فشل الحذف: ' + err.message); }
+    });
+  });
+
+  document.querySelectorAll('.viewBtn').forEach(btn => {
+    btn.addEventListener('click', () => openDetailModal(btn.dataset.id));
+  });
+
+  document.querySelectorAll('.editBtn').forEach(btn => {
+    btn.addEventListener('click', () => openEditModal(btn.dataset.id));
+  });
+}
+
+adminSearch.addEventListener('input', updateAdminView);
+
+/* ---------- Detail view + Edit modal ---------- */
+const DETAIL_FIELDS = [
+  {key:'fullName', label:'الاسم الرباعي واللقب', type:'text'},
+  {key:'motherName', label:'اسم الأم الثلاثي', type:'text'},
+  {key:'gender', label:'الجنس', type:'select', options:['ذكر','أنثى']},
+  {key:'nationality', label:'الجنسية', type:'text'},
+  {key:'birthPlace', label:'مسقط الرأس', type:'text'},
+  {key:'phone', label:'رقم الهاتف', type:'text'},
+  {key:'unifiedCard', label:'رقم البطاقة الموحدة', type:'text'},
+  {key:'email', label:'البريد الإلكتروني', type:'text'},
+  {key:'district', label:'الحي', type:'text'},
+  {key:'mahalla', label:'المحلة', type:'text'},
+  {key:'alley', label:'الزقاق', type:'text'},
+  {key:'houseNo', label:'رقم الدار', type:'text'},
+  {key:'fullAddress', label:'العنوان الكامل', type:'text'},
+  {key:'landmark', label:'أقرب نقطة دالة', type:'text'},
+  {key:'classification', label:'التصنيف', type:'select', options:['موظف','معلم']},
+  {key:'employeeNumber', label:'الرقم الوظيفي', type:'text'},
+  {key:'familyNumber', label:'الرقم العائلي', type:'text'},
+  {key:'employmentType', label:'نوع التوظيف', type:'select', options:['ملاك','عقد']},
+  {key:'jobTitle', label:'العنوان الوظيفي', type:'text'},
+  {key:'jobGrade', label:'الدرجة الوظيفية', type:'text'},
+  {key:'jobDesignation', label:'المسمى الوظيفي', type:'text'},
+  {key:'currentPosition', label:'المنصب الحالي', type:'text'},
+  {key:'maritalStatus', label:'الحالة الاجتماعية', type:'select', options:['متزوج','أعزب']},
+  {key:'appointmentDate', label:'تاريخ اول تعيين', type:'date'},
+  {key:'qualification', label:'الشهادة', type:'select', options:['ابتدائية','متوسطة','اعدادية','دبلوم','بكالوريوس','دراسات عليا (ماجستير/دكتوراه)']},
+  {key:'graduationYear', label:'سنة التخرج', type:'text'},
+  {key:'university', label:'الجامعة', type:'text'},
+  {key:'college', label:'الكلية', type:'text'},
+  {key:'specialization', label:'الاختصاص', type:'text'},
+  {key:'subject', label:'المادة التي يدرسها', type:'text'},
+  {key:'emergencyName', label:'اسم جهة اتصال الطوارئ', type:'text'},
+  {key:'emergencyRelation', label:'صلة جهة الاتصال', type:'text'},
+  {key:'emergencyPhone', label:'هاتف جهة الاتصال', type:'text'}
+];
+
+const detailModal = document.getElementById('detailModal');
+const detailBody = document.getElementById('detailBody');
+document.getElementById('detailClose').addEventListener('click', () => detailModal.classList.remove('show'));
+detailModal.addEventListener('click', (e) => { if (e.target === detailModal) detailModal.classList.remove('show'); });
+
+function openDetailModal(id){
+  const rec = cachedDocs.find(d => d.id === id);
+  if (!rec) return;
+  const photoHtml = rec.photo ? `<div style="text-align:center;margin-bottom:14px;"><img src="${rec.photo}" style="width:110px;height:110px;object-fit:cover;border-radius:12px;border:3px solid var(--gold);"></div>` : '';
+  const refHtml = rec.referenceNumber ? `<div class="detail-row" style="background:#eef3fa;border-radius:8px;padding:8px 10px;border-bottom:none;"><span class="dl">الرقم المرجعي</span><span class="dv" style="direction:ltr;">${esc(rec.referenceNumber)}</span></div>` : '';
+  const rows = DETAIL_FIELDS.map(f => `<div class="detail-row"><span class="dl">${f.label}</span><span class="dv">${esc(rec[f.key]) || '-'}</span></div>`).join('');
+  detailBody.innerHTML = photoHtml + refHtml + rows;
+  detailModal.classList.add('show');
+}
+
+const editModal = document.getElementById('editModal');
+const editFormFields = document.getElementById('editFormFields');
+const editSaveBtn = document.getElementById('editSave');
+let editRecordId = null;
+
+document.getElementById('editClose').addEventListener('click', () => editModal.classList.remove('show'));
+document.getElementById('editCancel').addEventListener('click', () => editModal.classList.remove('show'));
+editModal.addEventListener('click', (e) => { if (e.target === editModal) editModal.classList.remove('show'); });
+
+function openEditModal(id){
+  const rec = cachedDocs.find(d => d.id === id);
+  if (!rec) return;
+  editRecordId = id;
+  editFormFields.innerHTML = DETAIL_FIELDS.map(f => {
+    const val = rec[f.key] || '';
+    if (f.type === 'select'){
+      const opts = f.options.map(o => `<option ${o===val?'selected':''}>${o}</option>`).join('');
+      return `<div class="field"><label>${f.label}</label><select id="edit_${f.key}"><option value="">-</option>${opts}</select></div>`;
+    }
+    const type = f.type === 'date' ? 'date' : 'text';
+    return `<div class="field"><label>${f.label}</label><input type="${type}" id="edit_${f.key}" value="${esc(val)}"></div>`;
+  }).join('');
+  editModal.classList.add('show');
+}
+
+editSaveBtn.addEventListener('click', async () => {
+  if (!editRecordId || !fb) return;
+  const updates = {};
+  DETAIL_FIELDS.forEach(f => {
+    const el = document.getElementById('edit_' + f.key);
+    if (el) updates[f.key] = el.value.trim();
+  });
+  editSaveBtn.disabled = true;
+  editSaveBtn.textContent = 'جارِ الحفظ...';
+  try{
+    await fb.updateDoc(fb.doc(fb.db, COLLECTION_NAME, editRecordId), updates);
+    editModal.classList.remove('show');
+    loadAdminData();
+  }catch(err){
+    alert('فشل حفظ التعديلات: ' + err.message);
+  }finally{
+    editSaveBtn.disabled = false;
+    editSaveBtn.textContent = 'حفظ التعديلات';
+  }
+});
 
 function esc(s){
   if (s === undefined || s === null) return '';
   return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 
-/* ---------- Export to Excel ---------- */
-document.getElementById('btnExport').addEventListener('click', () => {
+/* ---------- Export to Excel (with embedded photos) ---------- */
+const btnExport = document.getElementById('btnExport');
+btnExport.addEventListener('click', async () => {
   if (!cachedDocs.length){ alert('لا توجد بيانات للتصدير'); return; }
 
-  const rows = cachedDocs.map(t => ({
-    "الاسم الرباعي واللقب": t.fullName || '',
-    "اسم الأم الثلاثي": t.motherName || '',
-    "الجنس": t.gender || '',
-    "الجنسية": t.nationality || '',
-    "مسقط الرأس": t.birthPlace || '',
-    "التصنيف": t.classification || '',
-    "الرقم الوظيفي": t.employeeNumber || '',
-    "الرقم العائلي": t.familyNumber || '',
-    "نوع التوظيف": t.employmentType || '',
-    "العنوان الوظيفي": t.jobTitle || '',
-    "الدرجة الوظيفية": t.jobGrade || '',
-    "المسمى الوظيفي": t.jobDesignation || '',
-    "المنصب الحالي": t.currentPosition || '',
-    "الحالة الاجتماعية": t.maritalStatus || '',
-    "تاريخ اول تعيين": t.appointmentDate || '',
-    "سنة التخرج": t.graduationYear || '',
-    "الجامعة": t.university || '',
-    "الكلية": t.college || '',
-    "الاختصاص": t.specialization || '',
-    "المادة التي يدرسها": t.subject || '',
-    "الحي": t.district || '',
-    "المحلة": t.mahalla || '',
-    "الزقاق": t.alley || '',
-    "رقم الدار": t.houseNo || '',
-    "العنوان الكامل": t.fullAddress || '',
-    "أقرب نقطة دالة": t.landmark || '',
-    "رقم الهاتف": t.phone || '',
-    "رقم البطاقة الموحدة": t.unifiedCard || '',
-    "البريد الإلكتروني": t.email || '',
-    "اسم جهة اتصال الطوارئ": t.emergencyName || '',
-    "صلة جهة الاتصال": t.emergencyRelation || '',
-    "هاتف جهة الاتصال": t.emergencyPhone || '',
-    "تاريخ التسجيل": t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toLocaleDateString('ar-IQ') : ''
-  }));
+  btnExport.disabled = true;
+  btnExport.textContent = 'جارِ التصدير...';
 
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = Object.keys(rows[0]).map(() => ({wch: 22}));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "بيانات المدرسين");
-  const today = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, `بيانات_مدرسين_اعدادية_ام_قصر_${today}.xlsx`);
+  try{
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('بيانات المدرسين', { views: [{ rightToLeft: true }] });
+
+    sheet.columns = [
+      {header:'الرقم المرجعي', key:'referenceNumber', width:16},
+      {header:'الصورة', key:'photo', width:14},
+      {header:'الاسم الرباعي واللقب', key:'fullName', width:26},
+      {header:'اسم الأم الثلاثي', key:'motherName', width:22},
+      {header:'الجنس', key:'gender', width:10},
+      {header:'الجنسية', key:'nationality', width:12},
+      {header:'مسقط الرأس', key:'birthPlace', width:16},
+      {header:'التصنيف', key:'classification', width:12},
+      {header:'الرقم الوظيفي', key:'employeeNumber', width:14},
+      {header:'الرقم العائلي', key:'familyNumber', width:14},
+      {header:'نوع التوظيف', key:'employmentType', width:12},
+      {header:'العنوان الوظيفي', key:'jobTitle', width:22},
+      {header:'الدرجة الوظيفية', key:'jobGrade', width:14},
+      {header:'المسمى الوظيفي', key:'jobDesignation', width:18},
+      {header:'المنصب الحالي', key:'currentPosition', width:18},
+      {header:'الحالة الاجتماعية', key:'maritalStatus', width:14},
+      {header:'تاريخ اول تعيين', key:'appointmentDate', width:14},
+      {header:'سنة التخرج', key:'graduationYear', width:12},
+      {header:'الشهادة', key:'qualification', width:16},
+      {header:'الجامعة', key:'university', width:20},
+      {header:'الكلية', key:'college', width:18},
+      {header:'الاختصاص', key:'specialization', width:18},
+      {header:'المادة التي يدرسها', key:'subject', width:18},
+      {header:'الحي', key:'district', width:14},
+      {header:'المحلة', key:'mahalla', width:12},
+      {header:'الزقاق', key:'alley', width:10},
+      {header:'رقم الدار', key:'houseNo', width:10},
+      {header:'العنوان الكامل', key:'fullAddress', width:26},
+      {header:'أقرب نقطة دالة', key:'landmark', width:22},
+      {header:'رقم الهاتف', key:'phone', width:16},
+      {header:'رقم البطاقة الموحدة', key:'unifiedCard', width:18},
+      {header:'البريد الإلكتروني', key:'email', width:22},
+      {header:'اسم جهة اتصال الطوارئ', key:'emergencyName', width:20},
+      {header:'صلة جهة الاتصال', key:'emergencyRelation', width:16},
+      {header:'هاتف جهة الاتصال', key:'emergencyPhone', width:16},
+      {header:'تاريخ التسجيل', key:'createdAt', width:14}
+    ];
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).alignment = { horizontal:'center', vertical:'middle' };
+
+    cachedDocs.forEach(t => {
+      const row = sheet.addRow({
+        referenceNumber: t.referenceNumber || '',
+        fullName: t.fullName || '',
+        motherName: t.motherName || '',
+        gender: t.gender || '',
+        nationality: t.nationality || '',
+        birthPlace: t.birthPlace || '',
+        classification: t.classification || '',
+        employeeNumber: t.employeeNumber || '',
+        familyNumber: t.familyNumber || '',
+        employmentType: t.employmentType || '',
+        jobTitle: t.jobTitle || '',
+        jobGrade: t.jobGrade || '',
+        jobDesignation: t.jobDesignation || '',
+        currentPosition: t.currentPosition || '',
+        maritalStatus: t.maritalStatus || '',
+        appointmentDate: t.appointmentDate || '',
+        graduationYear: t.graduationYear || '',
+        qualification: t.qualification || '',
+        university: t.university || '',
+        college: t.college || '',
+        specialization: t.specialization || '',
+        subject: t.subject || '',
+        district: t.district || '',
+        mahalla: t.mahalla || '',
+        alley: t.alley || '',
+        houseNo: t.houseNo || '',
+        fullAddress: t.fullAddress || '',
+        landmark: t.landmark || '',
+        phone: t.phone || '',
+        unifiedCard: t.unifiedCard || '',
+        email: t.email || '',
+        emergencyName: t.emergencyName || '',
+        emergencyRelation: t.emergencyRelation || '',
+        emergencyPhone: t.emergencyPhone || '',
+        createdAt: t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toLocaleDateString('ar-IQ') : ''
+      });
+      row.height = 58;
+      row.alignment = { vertical:'middle', horizontal:'center', wrapText:true };
+
+      if (t.photo && typeof t.photo === 'string' && t.photo.startsWith('data:image')){
+        const match = t.photo.match(/^data:image\/(png|jpe?g);base64,/);
+        if (match){
+          const ext = match[1] === 'jpg' ? 'jpeg' : match[1];
+          const imgId = workbook.addImage({ base64: t.photo, extension: ext });
+          sheet.addImage(imgId, {
+            tl: { col: 1.15, row: (row.number - 1) + 0.1 },
+            ext: { width: 52, height: 52 }
+          });
+        }
+      }
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `بيانات_مدرسين_اعدادية_ام_قصر_${today}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }catch(err){
+    console.error(err);
+    alert('حدث خطأ أثناء تصدير الملف: ' + err.message);
+  }finally{
+    btnExport.disabled = false;
+    btnExport.textContent = '⬇ تصدير Excel';
+  }
 });
 </script>
 
