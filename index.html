@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>استمارة بيانات المدرسين - اعدادية أم قصر للبنين</title>
+<meta name="description" content="استمارة تسجيل بيانات المدرسين - اعدادية أم قصر للبنين">
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC-kRs2R9mBegcMoUsl7Fi6vg3bLlZTqRY",
+    authDomain: "um-qasr-teachers.firebaseapp.com",
+    projectId: "um-qasr-teachers",
+    storageBucket: "um-qasr-teachers.firebasestorage.app",
+    messagingSenderId: "10475015276",
+    appId: "1:10475015276:web:1e53b45d0bcba7e0431c49"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  window.__fb = { db, collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy };
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<!-- SheetJS for Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+  :root{
+    --navy:#0b2545;
+    --navy-2:#123a6b;
+    --gold:#c9a227;
+    --gold-2:#e0bf4f;
+    --bg:#f3f5f8;
+    --card:#ffffff;
+    --ok:#1a7a3e;
+    --danger:#b3261e;
+    --text:#1b2430;
+    --muted:#6b7685;
+    --border:#e2e6ec;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Segoe UI', Tahoma, Arial, sans-serif;
+    background:linear-gradient(180deg,#0b2545 0%, #0b2545 220px, var(--bg) 220px);
+    color:var(--text);
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  .container{max-width:760px;margin:0 auto;padding:0 16px;}
+
+  header.top{
+    padding:28px 16px 20px;
+    text-align:center;
+    color:#fff;
+  }
+  header.top .badge{
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.25);
+    padding:6px 14px;border-radius:999px;
+    font-size:13px;color:var(--gold-2);
+    margin-bottom:14px;
+  }
+  header.top h1{
+    font-size:22px;margin:0 0 6px;font-weight:800;
+    letter-spacing:.3px;
+  }
+  header.top p{margin:0;color:#c9d4e3;font-size:14px;}
+
+  .card{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:0 10px 30px rgba(11,37,69,0.12);
+    padding:22px 18px;
+    margin-top:-40px;
+    position:relative;
+    z-index:2;
+  }
+
+  .section-title{
+    display:flex;align-items:center;gap:10px;
+    font-size:15px;font-weight:800;color:var(--navy);
+    margin:26px 0 14px;
+    padding-bottom:8px;
+    border-bottom:2px solid var(--gold);
+  }
+  .section-title:first-child{margin-top:0;}
+  .section-title .num{
+    background:var(--navy);color:#fff;
+    width:24px;height:24px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:12px;flex-shrink:0;
+  }
+
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;font-size:13.5px;font-weight:700;
+    color:var(--navy);margin-bottom:6px;
+  }
+  .field label .req{color:var(--danger);margin-inline-start:3px;}
+  .field input[type=text],
+  .field input[type=tel],
+  .field select{
+    width:100%;
+    padding:12px 14px;
+    border:1.5px solid var(--border);
+    border-radius:10px;
+    font-size:14.5px;
+    font-family:inherit;
+    background:#fbfcfd;
+    color:var(--text);
+    transition:.15s;
+  }
+  .field input:focus, .field select:focus{
+    outline:none;border-color:var(--navy-2);
+    background:#fff;
+    box-shadow:0 0 0 3px rgba(18,58,107,0.12);
+  }
+  .field .hint{font-size:12px;color:var(--muted);margin-top:4px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:520px){.row2{grid-template-columns:1fr;}}
+
+  .photo-box{
+    border:2px dashed var(--border);
+    border-radius:14px;
+    padding:18px;
+    text-align:center;
+    background:#fbfcfd;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .photo-box:hover{border-color:var(--navy-2);}
+  .photo-box.has-img{padding:12px;}
+  .photo-box img{
+    width:120px;height:120px;object-fit:cover;
+    border-radius:12px;border:3px solid var(--gold);
+    display:block;margin:0 auto 8px;
+  }
+  .photo-box .icon{font-size:34px;color:var(--navy-2);margin-bottom:6px;}
+  .photo-box .txt{font-size:13.5px;color:var(--muted);font-weight:600;}
+  .photo-box input{display:none;}
+
+  button.submit{
+    width:100%;
+    background:linear-gradient(180deg,var(--navy-2),var(--navy));
+    color:#fff;border:none;
+    padding:15px;border-radius:12px;
+    font-size:16px;font-weight:800;
+    cursor:pointer;margin-top:10px;
+    box-shadow:0 8px 20px rgba(11,37,69,0.28);
+    transition:.15s;
+  }
+  button.submit:active{transform:scale(0.98);}
+  button.submit:disabled{opacity:.6;cursor:not-allowed;}
+
+  .msg{
+    padding:12px 14px;border-radius:10px;
+    font-size:14px;font-weight:600;margin-top:14px;
+    display:none;
+  }
+  .msg.ok{background:#e6f4ea;color:var(--ok);display:block;}
+  .msg.err{background:#fbe9e7;color:var(--danger);display:block;}
+
+  footer.site{
+    text-align:center;color:#8a93a3;font-size:12.5px;
+    margin-top:26px;padding:0 16px;line-height:1.9;
+  }
+  footer.site b{color:var(--navy);}
+
+  /* ===== Admin Panel ===== */
+  #adminBtn{
+    position:fixed;bottom:16px;left:16px;
+    width:44px;height:44px;border-radius:50%;
+    background:var(--navy);color:var(--gold-2);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 6px 16px rgba(0,0,0,.3);
+    cursor:pointer;font-size:18px;z-index:50;
+    border:none;
+  }
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(11,37,69,0.75);
+    display:none;align-items:center;justify-content:center;
+    z-index:100;padding:16px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-box{
+    background:#fff;border-radius:16px;
+    padding:24px 20px;max-width:340px;width:100%;
+    text-align:center;
+  }
+  .modal-box h3{margin:0 0 14px;color:var(--navy);}
+  .modal-box input{
+    width:100%;padding:12px;border:1.5px solid var(--border);
+    border-radius:10px;font-size:16px;text-align:center;
+    letter-spacing:3px;margin-bottom:12px;
+  }
+  .modal-box .actions{display:flex;gap:10px;}
+  .modal-box button{
+    flex:1;padding:11px;border-radius:10px;border:none;
+    font-weight:700;cursor:pointer;font-size:14px;
+  }
+  .modal-box .cancel{background:#eee;color:#444;}
+  .modal-box .go{background:var(--navy);color:#fff;}
+  .modal-box .err{color:var(--danger);font-size:13px;min-height:18px;margin-bottom:6px;}
+
+  #adminPanel{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:var(--bg);
+    z-index:90;
+    overflow-y:auto;
+  }
+  #adminPanel.show{display:block;}
+  .admin-header{
+    background:var(--navy);color:#fff;padding:18px 16px;
+    display:flex;align-items:center;justify-content:space-between;
+    flex-wrap:wrap;gap:10px;
+  }
+  .admin-header h2{margin:0;font-size:17px;}
+  .admin-actions{display:flex;gap:8px;flex-wrap:wrap;}
+  .admin-actions button{
+    padding:9px 14px;border-radius:9px;border:none;
+    font-weight:700;font-size:13px;cursor:pointer;
+  }
+  .btn-export{background:var(--gold);color:#1b2430;}
+  .btn-refresh{background:rgba(255,255,255,.15);color:#fff;}
+  .btn-close{background:rgba(255,255,255,.15);color:#fff;}
+  .btn-del{background:var(--danger);color:#fff;}
+
+  .admin-body{padding:14px 12px;max-width:1200px;margin:0 auto;}
+  .admin-stats{font-size:13.5px;color:var(--muted);margin-bottom:12px;padding:0 4px;}
+  .table-wrap{overflow-x:auto;background:#fff;border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.06);}
+  table.admin-table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap;}
+  table.admin-table th{
+    background:var(--navy);color:#fff;padding:10px 12px;
+    position:sticky;top:0;text-align:right;
+  }
+  table.admin-table td{padding:9px 12px;border-bottom:1px solid var(--border);}
+  table.admin-table tr:hover td{background:#f7f9fc;}
+  table.admin-table img.thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;}
+  .row-actions button{
+    background:var(--danger);color:#fff;border:none;
+    padding:6px 10px;border-radius:7px;font-size:12px;cursor:pointer;
+  }
+  .empty-state{text-align:center;color:var(--muted);padding:40px 10px;}
+  .loading{text-align:center;color:var(--muted);padding:30px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="container">
+    <div class="badge">🎓 وزارة التربية العراقية — مديرية تربية البصرة</div>
+    <h1>اعدادية أم قصر للبنين</h1>
+    <p>استمارة تسجيل بيانات الكادر التدريسي (نظام EMIS)</p>
+    <p style="margin-top:6px;font-size:12px;color:var(--gold-2);">من تصميم: علي محمد دينار</p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="card">
+    <form id="teacherForm" autocomplete="off">
+
+      <div class="msg" style="display:block;background:#eef3fa;color:var(--navy-2);margin-bottom:18px;">
+        ملاحظة: الحقول التي تحمل علامة <b class="req" style="color:var(--danger);">*</b> إلزامية، أما باقي الحقول فهي اختيارية وليست ضرورية لتعبئتها.
+      </div>
+
+      <div class="section-title"><span class="num">1</span> البيانات الشخصية</div>
+
+      <div class="field">
+        <label>الاسم الرباعي واللقب <span class="req">*</span></label>
+        <input type="text" id="fullName" required placeholder="مثال: أحمد محمد علي حسين الفلاحي">
+      </div>
+
+      <div class="field">
+        <label>اسم الأم الثلاثي <span class="req">*</span></label>
+        <input type="text" id="motherName" required placeholder="مثال: زينب عبد الله كاظم">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>الجنس <span class="req">*</span></label>
+          <select id="gender" required>
+            <option value="" disabled selected>اختر</option>
+            <option>ذكر</option>
+            <option>أنثى</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>الجنسية <span class="req">*</span></label>
+          <input type="text" id="nationality" required placeholder="عراقي">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>مسقط الرأس</label>
+        <input type="text" id="birthPlace" placeholder="محل الولادة (اختياري)">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>رقم الهاتف <span class="req">*</span></label>
+          <input type="tel" id="phone" required placeholder="07xxxxxxxxx">
+        </div>
+        <div class="field">
+          <label>رقم البطاقة الموحدة <span class="req">*</span></label>
+          <input type="text" id="unifiedCard" required placeholder="رقم البطاقة الوطنية الموحدة">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>البريد الإلكتروني</label>
+        <input type="text" id="email" placeholder="البريد الإلكتروني (اختياري)">
+      </div>
+
+      <div class="section-title"><span class="num">2</span> العنوان</div>
+
+      <div class="row2">
+        <div class="field">
+          <label>الحي <span class="req">*</span></label>
+          <input type="text" id="district" required placeholder="اسم الحي">
+        </div>
+        <div class="field">
+          <label>المحلة <span class="req">*</span></label>
+          <input type="text" id="mahalla" required placeholder="رقم/اسم المحلة">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>الزقاق <span class="req">*</span></label>
+          <input type="text" id="alley" required placeholder="رقم الزقاق">
+        </div>
+        <div class="field">
+          <label>رقم الدار</label>
+          <input type="text" id="houseNo" placeholder="رقم الدار (اختياري)">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>العنوان الكامل <span class="req">*</span></label>
+        <input type="text" id="fullAddress" required placeholder="العنوان بشكل تفصيلي كامل">
+      </div>
+
+      <div class="field">
+        <label>أقرب نقطة دالة <span class="req">*</span></label>
+        <input type="text" id="landmark" required placeholder="مثال: قرب جامع.. / مقابل مدرسة..">
+      </div>
+
+      <div class="section-title"><span class="num">3</span> البيانات الوظيفية</div>
+
+      <div class="field">
+        <label>التصنيف <span class="req">*</span></label>
+        <select id="classification" required>
+          <option value="" disabled selected>اختر التصنيف</option>
+          <option>موظف</option>
+          <option>معلم</option>
+        </select>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>الرقم الوظيفي</label>
+          <input type="text" id="employeeNumber" placeholder="الرقم الوظيفي (اختياري)">
+        </div>
+        <div class="field">
+          <label>الرقم العائلي</label>
+          <input type="text" id="familyNumber" placeholder="الرقم العائلي (اختياري)">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>نوع التوظيف <span class="req">*</span></label>
+        <select id="employmentType" required>
+          <option value="" disabled selected>اختر نوع التوظيف</option>
+          <option>ملاك</option>
+          <option>عقد</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>العنوان الوظيفي <span class="req">*</span></label>
+        <select id="jobTitle" required>
+          <option value="" disabled selected>اختر العنوان الوظيفي</option>
+          <optgroup label="الإدارة المدرسية">
+            <option>مدير مدرسة</option>
+            <option>معاون مدير</option>
+            <option>مشرف تربوي</option>
+          </optgroup>
+          <optgroup label="الملاك التدريسي">
+            <option>مدرس رابع</option>
+            <option>مدرس ثالث</option>
+            <option>مدرس ثالث / مرشد تربوي ثالث</option>
+            <option>مدرس ثاني</option>
+            <option>مدرس ثاني أقدم</option>
+            <option>مدرس اول</option>
+            <option>مدرس اقدم اول</option>
+            <option>مدرس اقدم</option>
+            <option>مدرس اقدم ثاني</option>
+            <option>مدرس مساعد</option>
+            <option>معلم جامعي أول</option>
+            <option>معلم جامعي</option>
+          </optgroup>
+          <optgroup label="الملاك الإداري والخدمي">
+            <option>معاون</option>
+            <option>ملاحظ</option>
+            <option>معاون ملاحظ</option>
+            <option>كاتب</option>
+            <option>محاسب</option>
+            <option>مدقق</option>
+            <option>أمين مكتبة</option>
+            <option>أمين مخزن</option>
+            <option>حرفي أول</option>
+            <option>حرفي</option>
+            <option>حارس</option>
+            <option>موظف خدمات</option>
+            <option>مسجل بيانات</option>
+          </optgroup>
+          <option>أخرى</option>
+        </select>
+      </div>
+
+      <div class="field" id="otherJobWrap" style="display:none;">
+        <label>حدد العنوان الوظيفي</label>
+        <input type="text" id="otherJob" placeholder="اكتب العنوان الوظيفي">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>الدرجة الوظيفية</label>
+          <input type="text" id="jobGrade" placeholder="الدرجة الوظيفية (اختياري)">
+        </div>
+        <div class="field">
+          <label>المسمى الوظيفي</label>
+          <input type="text" id="jobDesignation" placeholder="المسمى الوظيفي (اختياري)">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>المنصب الحالي <span class="req">*</span></label>
+        <input type="text" id="currentPosition" required placeholder="المنصب الحالي">
+      </div>
+
+      <div class="field">
+        <label>الحالة الاجتماعية <span class="req">*</span></label>
+        <select id="maritalStatus" required>
+          <option value="" disabled selected>اختر الحالة الاجتماعية</option>
+          <option>متزوج</option>
+          <option>أعزب</option>
+        </select>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>تاريخ اول تعيين للموظف <span class="req">*</span></label>
+          <input type="date" id="appointmentDate" required>
+        </div>
+        <div class="field">
+          <label>سنة التخرج</label>
+          <input type="text" id="graduationYear" inputmode="numeric" placeholder="مثال: 2015 (اختياري)">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>الجامعة <span class="req">*</span></label>
+          <input type="text" id="university" required placeholder="اسم الجامعة">
+        </div>
+        <div class="field">
+          <label>الكلية</label>
+          <input type="text" id="college" placeholder="اسم الكلية (اختياري)">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>الاختصاص</label>
+        <input type="text" id="specialization" placeholder="الاختصاص العام/الدقيق (اختياري)">
+      </div>
+
+      <div class="field">
+        <label>المادة التي يدرسها <span class="req">*</span></label>
+        <select id="subject" required>
+          <option value="" disabled selected>اختر المادة</option>
+          <option>التربية الإسلامية</option>
+          <option>اللغة العربية</option>
+          <option>اللغة الإنكليزية</option>
+          <option>الرياضيات</option>
+          <option>الأحياء</option>
+          <option>الكيمياء</option>
+          <option>الفيزياء</option>
+          <option>الجغرافية</option>
+          <option>التاريخ</option>
+          <option>الاقتصاد</option>
+          <option>الفلسفة</option>
+          <option>علم الاجتماع</option>
+          <option>الجرائم</option>
+          <option>التربية الرياضية</option>
+          <option>التربية الفنية</option>
+          <option>الحاسوب</option>
+          <option>اللغة الفرنسية</option>
+          <option>أخرى</option>
+        </select>
+      </div>
+
+      <div class="field" id="otherSubjectWrap" style="display:none;">
+        <label>حدد اسم المادة</label>
+        <input type="text" id="otherSubject" placeholder="اكتب اسم المادة">
+      </div>
+
+      <div class="section-title"><span class="num">4</span> جهة الاتصال في حالات الطوارئ</div>
+
+      <div class="field">
+        <label>اسم جهة الاتصال</label>
+        <input type="text" id="emergencyName" placeholder="اسم الشخص (اختياري)">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>صلة جهة الاتصال</label>
+          <input type="text" id="emergencyRelation" placeholder="مثال: الأخ / الزوجة (اختياري)">
+        </div>
+        <div class="field">
+          <label>رقم هاتف جهة الاتصال</label>
+          <input type="tel" id="emergencyPhone" placeholder="07xxxxxxxxx (اختياري)">
+        </div>
+      </div>
+
+      <div class="section-title"><span class="num">5</span> الصورة الشخصية</div>
+
+      <div class="field">
+        <label>صورة شخصية واضحة (حديثة)</label>
+        <div class="photo-box" id="photoBox">
+          <input type="file" id="photoInput" accept="image/*" capture="environment">
+          <div id="photoPlaceholder">
+            <div class="icon">📷</div>
+            <div class="txt">اضغط هنا لاختيار / التقاط صورة</div>
+          </div>
+        </div>
+        <div class="hint">يفضل صورة شخصية بخلفية بيضاء بحجم صغير (سيتم ضغطها تلقائياً)</div>
+      </div>
+
+      <button type="submit" class="submit" id="submitBtn">إرسال الاستمارة ✔</button>
+      <div class="msg" id="formMsg"></div>
+    </form>
+  </div>
+
+  <footer class="site">
+    <b>اعدادية أم قصر للبنين</b><br>
+    وزارة التربية — مديرية تربية البصرة — قضاء الزبير<br>
+    من تصميم: <b>علي محمد دينار</b>
+  </footer>
+</div>
+
+<!-- Admin floating button -->
+<button id="adminBtn" title="لوحة التحكم">🔒</button>
+
+<!-- Password Modal -->
+<div class="modal-overlay" id="pwModal">
+  <div class="modal-box">
+    <h3>دخول لوحة التحكم</h3>
+    <div class="err" id="pwErr"></div>
+    <input type="password" id="pwInput" placeholder="الرمز السري" inputmode="numeric">
+    <div class="actions">
+      <button class="cancel" id="pwCancel">إلغاء</button>
+      <button class="go" id="pwGo">دخول</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Panel -->
+<div id="adminPanel">
+  <div class="admin-header">
+    <h2>لوحة تحكم استمارات المدرسين</h2>
+    <div class="admin-actions">
+      <button class="btn-refresh" id="btnRefresh">↻ تحديث</button>
+      <button class="btn-export" id="btnExport">⬇ تصدير Excel</button>
+      <button class="btn-close" id="btnCloseAdmin">إغلاق ✕</button>
+    </div>
+  </div>
+  <div class="admin-body">
+    <div class="admin-stats" id="adminStats"></div>
+    <div class="table-wrap">
+      <table class="admin-table" id="adminTable">
+        <thead>
+          <tr>
+            <th>الصورة</th>
+            <th>الاسم الرباعي</th>
+            <th>اسم الأم</th>
+            <th>الجنس</th>
+            <th>الجنسية</th>
+            <th>مسقط الرأس</th>
+            <th>التصنيف</th>
+            <th>الرقم الوظيفي</th>
+            <th>الرقم العائلي</th>
+            <th>نوع التوظيف</th>
+            <th>العنوان الوظيفي</th>
+            <th>الدرجة الوظيفية</th>
+            <th>المسمى الوظيفي</th>
+            <th>المنصب الحالي</th>
+            <th>الحالة الاجتماعية</th>
+            <th>تاريخ اول تعيين</th>
+            <th>سنة التخرج</th>
+            <th>الجامعة</th>
+            <th>الكلية</th>
+            <th>الاختصاص</th>
+            <th>المادة</th>
+            <th>الحي</th>
+            <th>المحلة</th>
+            <th>الزقاق</th>
+            <th>العنوان الكامل</th>
+            <th>أقرب نقطة دالة</th>
+            <th>الهاتف</th>
+            <th>البطاقة الموحدة</th>
+            <th>البريد الإلكتروني</th>
+            <th>جهة اتصال الطوارئ</th>
+            <th>صلة القرابة</th>
+            <th>هاتف الطوارئ</th>
+            <th>التاريخ</th>
+            <th>حذف</th>
+          </tr>
+        </thead>
+        <tbody id="adminTbody">
+          <tr><td colspan="34" class="loading">جارِ التحميل...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADMIN_CODE = "199755";
+const COLLECTION_NAME = "teachers";
+
+let fb = null;
+window.addEventListener('firebase-ready', () => { fb = window.__fb; });
+
+/* ---------- Photo handling ---------- */
+const photoBox = document.getElementById('photoBox');
+const photoInput = document.getElementById('photoInput');
+const photoPlaceholder = document.getElementById('photoPlaceholder');
+let photoBase64 = "";
+
+photoBox.addEventListener('click', () => photoInput.click());
+
+photoInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      // Compress/resize to max 500px
+      const canvas = document.createElement('canvas');
+      const maxDim = 500;
+      let w = img.width, h = img.height;
+      if (w > h && w > maxDim){ h = h*(maxDim/w); w = maxDim; }
+      else if (h > maxDim){ w = w*(maxDim/h); h = maxDim; }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      photoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+      photoBox.classList.add('has-img');
+      photoBox.innerHTML = `<img src="${photoBase64}"><div class="txt">تم اختيار الصورة (اضغط للتغيير)</div>`;
+      photoBox.appendChild(photoInput);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+/* ---------- Subject "other" toggle ---------- */
+const subjectSel = document.getElementById('subject');
+const otherWrap = document.getElementById('otherSubjectWrap');
+subjectSel.addEventListener('change', () => {
+  otherWrap.style.display = subjectSel.value === 'أخرى' ? 'block' : 'none';
+});
+
+/* ---------- Job title "other" toggle ---------- */
+const jobSel = document.getElementById('jobTitle');
+const otherJobWrap = document.getElementById('otherJobWrap');
+jobSel.addEventListener('change', () => {
+  otherJobWrap.style.display = jobSel.value === 'أخرى' ? 'block' : 'none';
+});
+
+/* ---------- Form submit ---------- */
+const form = document.getElementById('teacherForm');
+const submitBtn = document.getElementById('submitBtn');
+const formMsg = document.getElementById('formMsg');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  formMsg.className = 'msg';
+  formMsg.style.display = 'none';
+
+  if (!fb){
+    formMsg.className = 'msg err';
+    formMsg.textContent = 'جارِ الاتصال بالخادم، أعد المحاولة خلال ثوانٍ';
+    formMsg.style.display = 'block';
+    return;
+  }
+
+  let subjectVal = subjectSel.value;
+  if (subjectVal === 'أخرى'){
+    const otherVal = document.getElementById('otherSubject').value.trim();
+    if (otherVal) subjectVal = otherVal;
+  }
+
+  let jobVal = jobSel.value;
+  if (jobVal === 'أخرى'){
+    const otherJobVal = document.getElementById('otherJob').value.trim();
+    if (otherJobVal) jobVal = otherJobVal;
+  }
+
+  const data = {
+    fullName: document.getElementById('fullName').value.trim(),
+    motherName: document.getElementById('motherName').value.trim(),
+    gender: document.getElementById('gender').value,
+    nationality: document.getElementById('nationality').value.trim(),
+    birthPlace: document.getElementById('birthPlace').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    unifiedCard: document.getElementById('unifiedCard').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    district: document.getElementById('district').value.trim(),
+    mahalla: document.getElementById('mahalla').value.trim(),
+    alley: document.getElementById('alley').value.trim(),
+    houseNo: document.getElementById('houseNo').value.trim(),
+    fullAddress: document.getElementById('fullAddress').value.trim(),
+    landmark: document.getElementById('landmark').value.trim(),
+    classification: document.getElementById('classification').value,
+    employeeNumber: document.getElementById('employeeNumber').value.trim(),
+    familyNumber: document.getElementById('familyNumber').value.trim(),
+    employmentType: document.getElementById('employmentType').value,
+    jobTitle: jobVal,
+    jobGrade: document.getElementById('jobGrade').value.trim(),
+    jobDesignation: document.getElementById('jobDesignation').value.trim(),
+    currentPosition: document.getElementById('currentPosition').value.trim(),
+    maritalStatus: document.getElementById('maritalStatus').value,
+    appointmentDate: document.getElementById('appointmentDate').value,
+    graduationYear: document.getElementById('graduationYear').value.trim(),
+    university: document.getElementById('university').value.trim(),
+    college: document.getElementById('college').value.trim(),
+    specialization: document.getElementById('specialization').value.trim(),
+    subject: subjectVal,
+    emergencyName: document.getElementById('emergencyName').value.trim(),
+    emergencyRelation: document.getElementById('emergencyRelation').value.trim(),
+    emergencyPhone: document.getElementById('emergencyPhone').value.trim(),
+    photo: photoBase64,
+    createdAt: fb.serverTimestamp()
+  };
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'جارِ الإرسال...';
+
+  try{
+    await fb.addDoc(fb.collection(fb.db, COLLECTION_NAME), data);
+    formMsg.className = 'msg ok';
+    formMsg.textContent = '✔ تم إرسال بياناتك بنجاح. شكراً لك.';
+    formMsg.style.display = 'block';
+    form.reset();
+    photoBase64 = "";
+    photoBox.classList.remove('has-img');
+    photoBox.innerHTML = `<div class="icon">📷</div><div class="txt">اضغط هنا لاختيار / التقاط صورة</div>`;
+    photoBox.appendChild(photoInput);
+    otherWrap.style.display = 'none';
+    otherJobWrap.style.display = 'none';
+    window.scrollTo({top:0, behavior:'smooth'});
+  }catch(err){
+    console.error(err);
+    formMsg.className = 'msg err';
+    formMsg.textContent = 'حدث خطأ أثناء الإرسال. تحقق من الاتصال بالإنترنت وحاول مرة أخرى.';
+    formMsg.style.display = 'block';
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'إرسال الاستمارة ✔';
+  }
+});
+
+/* ---------- Admin panel ---------- */
+const adminBtn = document.getElementById('adminBtn');
+const pwModal = document.getElementById('pwModal');
+const pwInput = document.getElementById('pwInput');
+const pwErr = document.getElementById('pwErr');
+const pwGo = document.getElementById('pwGo');
+const pwCancel = document.getElementById('pwCancel');
+const adminPanel = document.getElementById('adminPanel');
+const adminTbody = document.getElementById('adminTbody');
+const adminStats = document.getElementById('adminStats');
+
+let cachedDocs = [];
+
+adminBtn.addEventListener('click', () => {
+  pwInput.value = '';
+  pwErr.textContent = '';
+  pwModal.classList.add('show');
+  setTimeout(()=>pwInput.focus(), 100);
+});
+pwCancel.addEventListener('click', () => pwModal.classList.remove('show'));
+pwInput.addEventListener('keydown', (e) => { if(e.key === 'Enter') pwGo.click(); });
+
+pwGo.addEventListener('click', () => {
+  if (pwInput.value === ADMIN_CODE){
+    pwModal.classList.remove('show');
+    adminPanel.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    loadAdminData();
+  } else {
+    pwErr.textContent = 'الرمز السري غير صحيح';
+  }
+});
+
+document.getElementById('btnCloseAdmin').addEventListener('click', () => {
+  adminPanel.classList.remove('show');
+  document.body.style.overflow = '';
+});
+document.getElementById('btnRefresh').addEventListener('click', loadAdminData);
+
+async function loadAdminData(){
+  adminTbody.innerHTML = '<tr><td colspan="14" class="loading">جارِ التحميل...</td></tr>';
+  if (!fb){ setTimeout(loadAdminData, 500); return; }
+  try{
+    const q = fb.query(fb.collection(fb.db, COLLECTION_NAME), fb.orderBy('createdAt','desc'));
+    const snap = await fb.getDocs(q);
+    cachedDocs = [];
+    snap.forEach(d => cachedDocs.push({id: d.id, ...d.data()}));
+
+    adminStats.textContent = `عدد الاستمارات المسجلة: ${cachedDocs.length}`;
+
+    if (cachedDocs.length === 0){
+      adminTbody.innerHTML = '<tr><td colspan="34" class="empty-state">لا توجد استمارات مسجلة بعد</td></tr>';
+      return;
+    }
+
+    adminTbody.innerHTML = cachedDocs.map(t => {
+      const date = t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toLocaleDateString('ar-IQ') : '-';
+      return `<tr>
+        <td>${t.photo ? `<img class="thumb" src="${t.photo}">` : '-'}</td>
+        <td>${esc(t.fullName)}</td>
+        <td>${esc(t.motherName)}</td>
+        <td>${esc(t.gender)}</td>
+        <td>${esc(t.nationality)}</td>
+        <td>${esc(t.birthPlace)}</td>
+        <td>${esc(t.classification)}</td>
+        <td>${esc(t.employeeNumber)}</td>
+        <td>${esc(t.familyNumber)}</td>
+        <td>${esc(t.employmentType)}</td>
+        <td>${esc(t.jobTitle)}</td>
+        <td>${esc(t.jobGrade)}</td>
+        <td>${esc(t.jobDesignation)}</td>
+        <td>${esc(t.currentPosition)}</td>
+        <td>${esc(t.maritalStatus)}</td>
+        <td>${esc(t.appointmentDate)}</td>
+        <td>${esc(t.graduationYear)}</td>
+        <td>${esc(t.university)}</td>
+        <td>${esc(t.college)}</td>
+        <td>${esc(t.specialization)}</td>
+        <td>${esc(t.subject)}</td>
+        <td>${esc(t.district)}</td>
+        <td>${esc(t.mahalla)}</td>
+        <td>${esc(t.alley)}</td>
+        <td>${esc(t.fullAddress)}</td>
+        <td>${esc(t.landmark)}</td>
+        <td>${esc(t.phone)}</td>
+        <td>${esc(t.unifiedCard)}</td>
+        <td>${esc(t.email)}</td>
+        <td>${esc(t.emergencyName)}</td>
+        <td>${esc(t.emergencyRelation)}</td>
+        <td>${esc(t.emergencyPhone)}</td>
+        <td>${date}</td>
+        <td class="row-actions"><button data-id="${t.id}" class="delBtn">حذف</button></td>
+      </tr>`;
+    }).join('');
+
+    document.querySelectorAll('.delBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('هل أنت متأكد من حذف هذا السجل؟')) return;
+        try{
+          await fb.deleteDoc(fb.doc(fb.db, COLLECTION_NAME, btn.dataset.id));
+          loadAdminData();
+        }catch(err){ alert('فشل الحذف: ' + err.message); }
+      });
+    });
+
+  }catch(err){
+    console.error(err);
+    adminTbody.innerHTML = `<tr><td colspan="34" class="empty-state">حدث خطأ في تحميل البيانات: ${err.message}</td></tr>`;
+  }
+}
+
+function esc(s){
+  if (s === undefined || s === null) return '';
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+/* ---------- Export to Excel ---------- */
+document.getElementById('btnExport').addEventListener('click', () => {
+  if (!cachedDocs.length){ alert('لا توجد بيانات للتصدير'); return; }
+
+  const rows = cachedDocs.map(t => ({
+    "الاسم الرباعي واللقب": t.fullName || '',
+    "اسم الأم الثلاثي": t.motherName || '',
+    "الجنس": t.gender || '',
+    "الجنسية": t.nationality || '',
+    "مسقط الرأس": t.birthPlace || '',
+    "التصنيف": t.classification || '',
+    "الرقم الوظيفي": t.employeeNumber || '',
+    "الرقم العائلي": t.familyNumber || '',
+    "نوع التوظيف": t.employmentType || '',
+    "العنوان الوظيفي": t.jobTitle || '',
+    "الدرجة الوظيفية": t.jobGrade || '',
+    "المسمى الوظيفي": t.jobDesignation || '',
+    "المنصب الحالي": t.currentPosition || '',
+    "الحالة الاجتماعية": t.maritalStatus || '',
+    "تاريخ اول تعيين": t.appointmentDate || '',
+    "سنة التخرج": t.graduationYear || '',
+    "الجامعة": t.university || '',
+    "الكلية": t.college || '',
+    "الاختصاص": t.specialization || '',
+    "المادة التي يدرسها": t.subject || '',
+    "الحي": t.district || '',
+    "المحلة": t.mahalla || '',
+    "الزقاق": t.alley || '',
+    "رقم الدار": t.houseNo || '',
+    "العنوان الكامل": t.fullAddress || '',
+    "أقرب نقطة دالة": t.landmark || '',
+    "رقم الهاتف": t.phone || '',
+    "رقم البطاقة الموحدة": t.unifiedCard || '',
+    "البريد الإلكتروني": t.email || '',
+    "اسم جهة اتصال الطوارئ": t.emergencyName || '',
+    "صلة جهة الاتصال": t.emergencyRelation || '',
+    "هاتف جهة الاتصال": t.emergencyPhone || '',
+    "تاريخ التسجيل": t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toLocaleDateString('ar-IQ') : ''
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(() => ({wch: 22}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "بيانات المدرسين");
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `بيانات_مدرسين_اعدادية_ام_قصر_${today}.xlsx`);
+});
+</script>
+
+</body>
+</html>
