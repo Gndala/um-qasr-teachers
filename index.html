@@ -335,9 +335,30 @@
   table.admin-table img.thumb{width:38px;height:38px;border-radius:8px;object-fit:cover;}
   .empty-state{text-align:center;color:var(--muted);padding:40px 10px;}
   .loading{text-align:center;color:var(--muted);padding:30px;}
+  #updateBanner{
+    position:fixed;top:0;left:0;right:0;z-index:999;
+    background:linear-gradient(90deg, var(--gold), var(--gold-2));
+    color:var(--navy);
+    text-align:center;
+    font-size:13.5px;font-weight:800;
+    padding:10px 16px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2);
+    transform:translateY(-100%);
+    transition:transform .4s ease;
+  }
+  #updateBanner.show{transform:translateY(0);}
 </style>
 </head>
 <body>
+
+<div id="updateBanner">✅ تم تحديث الموقع بواسطة علي محمد دينار</div>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const b = document.getElementById('updateBanner');
+    setTimeout(() => b.classList.add('show'), 100);
+    setTimeout(() => b.classList.remove('show'), 4000);
+  });
+</script>
 
 <header class="top">
   <div class="container">
@@ -391,9 +412,15 @@
         </div>
       </div>
 
-      <div class="field">
-        <label>مسقط الرأس</label>
-        <input type="text" id="birthPlace" placeholder="محل الولادة (اختياري)">
+      <div class="row2">
+        <div class="field">
+          <label>مسقط الرأس</label>
+          <input type="text" id="birthPlace" placeholder="محل الولادة (اختياري)">
+        </div>
+        <div class="field">
+          <label>تاريخ الميلاد</label>
+          <input type="date" id="birthDate" placeholder="تاريخ الميلاد (اختياري)">
+        </div>
       </div>
 
       <div class="row2">
@@ -404,7 +431,8 @@
         </div>
         <div class="field">
           <label>رقم البطاقة الموحدة <span class="req">*</span></label>
-          <input type="text" id="unifiedCard" required placeholder="رقم البطاقة الوطنية الموحدة" pattern="[0-9]{6,15}" inputmode="numeric" title="أرقام فقط، من 6 إلى 15 رقم">
+          <input type="text" id="unifiedCard" required placeholder="رقم البطاقة الوطنية الموحدة" inputmode="numeric" title="أدخل رقم البطاقة الموحدة">
+          <div class="hint">أرقام فقط (يمكن أن تحتوي أصفار في البداية)</div>
         </div>
       </div>
 
@@ -724,6 +752,7 @@
             <th class="sortable" data-key="gender">الجنس</th>
             <th class="sortable" data-key="nationality">الجنسية</th>
             <th class="sortable" data-key="birthPlace">مسقط الرأس</th>
+            <th class="sortable" data-key="birthDate">تاريخ الميلاد</th>
             <th class="sortable" data-key="classification">التصنيف</th>
             <th class="sortable" data-key="employeeNumber">الرقم الوظيفي</th>
             <th class="sortable" data-key="familyNumber">الرقم العائلي</th>
@@ -893,7 +922,7 @@ document.getElementById('successClose').addEventListener('click', () => {
 
 /* ---------- Draft autosave (text fields only, not photo) ---------- */
 const DRAFT_KEY = 'umQasrTeacherDraft';
-const draftFields = ['fullName','motherName','gender','nationality','birthPlace','phone','unifiedCard','email',
+const draftFields = ['fullName','motherName','gender','nationality','birthPlace','birthDate','phone','unifiedCard','email',
   'district','mahalla','alley','houseNo','fullAddress','landmark','classification','employeeNumber','familyNumber',
   'employmentType','jobTitle','otherJob','jobGrade','jobDesignation','currentPosition','maritalStatus',
   'appointmentDate','qualification','graduationYear','university','college','specialization','subject','otherSubject',
@@ -977,30 +1006,7 @@ form.addEventListener('submit', async (e) => {
   const unifiedCardVal = document.getElementById('unifiedCard').value.trim();
 
   submitBtn.disabled = true;
-  submitBtn.textContent = 'جارِ التحقق من البيانات...';
-
-  try{
-    const dupQ = fb.query(fb.collection(fb.db, COLLECTION_NAME), fb.where('unifiedCard', '==', unifiedCardVal));
-    const dupSnap = await fb.getDocs(dupQ);
-    if (!dupSnap.empty){
-      const existing = dupSnap.docs[0].data();
-      formMsg.className = 'msg err';
-      formMsg.textContent = `⚠ هذا الرقم للبطاقة الموحدة مسجل مسبقاً باسم "${existing.fullName || '-'}". إذا كانت هذه معلوماتك وتريد تعديلها راجع إدارة المدرسة.`;
-      formMsg.style.display = 'block';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'إرسال الاستمارة ✔';
-      window.scrollTo({top:0, behavior:'smooth'});
-      return;
-    }
-  }catch(err){
-    console.error(err);
-    formMsg.className = 'msg err';
-    formMsg.textContent = 'تعذّر التحقق من البيانات، تحقق من الاتصال بالإنترنت وحاول مرة أخرى.';
-    formMsg.style.display = 'block';
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'إرسال الاستمارة ✔';
-    return;
-  }
+  submitBtn.textContent = 'جارِ الإرسال...';
 
   let subjectVal = subjectSel.value;
   if (subjectVal === 'أخرى'){
@@ -1023,6 +1029,7 @@ form.addEventListener('submit', async (e) => {
     gender: document.getElementById('gender').value,
     nationality: document.getElementById('nationality').value.trim(),
     birthPlace: document.getElementById('birthPlace').value.trim(),
+    birthDate: document.getElementById('birthDate').value.trim(),
     phone: document.getElementById('phone').value.trim(),
     unifiedCard: document.getElementById('unifiedCard').value.trim(),
     email: document.getElementById('email').value.trim(),
@@ -1206,6 +1213,7 @@ function renderAdminRows(list){
       <td>${esc(t.gender)}</td>
       <td>${esc(t.nationality)}</td>
       <td>${esc(t.birthPlace)}</td>
+      <td>${esc(t.birthDate)}</td>
       <td>${esc(t.classification)}</td>
       <td>${esc(t.employeeNumber)}</td>
       <td>${esc(t.familyNumber)}</td>
@@ -1270,6 +1278,7 @@ const DETAIL_FIELDS = [
   {key:'gender', label:'الجنس', type:'select', options:['ذكر','أنثى']},
   {key:'nationality', label:'الجنسية', type:'text'},
   {key:'birthPlace', label:'مسقط الرأس', type:'text'},
+  {key:'birthDate', label:'تاريخ الميلاد', type:'date'},
   {key:'phone', label:'رقم الهاتف', type:'text'},
   {key:'unifiedCard', label:'رقم البطاقة الموحدة', type:'text'},
   {key:'email', label:'البريد الإلكتروني', type:'text'},
@@ -1386,6 +1395,7 @@ btnExport.addEventListener('click', async () => {
       {header:'الجنس', key:'gender', width:10},
       {header:'الجنسية', key:'nationality', width:12},
       {header:'مسقط الرأس', key:'birthPlace', width:16},
+      {header:'تاريخ الميلاد', key:'birthDate', width:14},
       {header:'التصنيف', key:'classification', width:12},
       {header:'الرقم الوظيفي', key:'employeeNumber', width:14},
       {header:'الرقم العائلي', key:'familyNumber', width:14},
@@ -1427,6 +1437,7 @@ btnExport.addEventListener('click', async () => {
         gender: t.gender || '',
         nationality: t.nationality || '',
         birthPlace: t.birthPlace || '',
+        birthDate: t.birthDate || '',
         classification: t.classification || '',
         employeeNumber: t.employeeNumber || '',
         familyNumber: t.familyNumber || '',
