@@ -213,6 +213,62 @@
     transition:transform .4s ease;
   }
   #updateBanner.show{transform:translateY(0);}
+
+  /* ---------- Success confirmation modal ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;z-index:1000;
+    background:rgba(11,37,69,.55);
+    display:none;align-items:center;justify-content:center;
+    padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .success-box{
+    background:#fff;border-radius:20px;
+    max-width:400px;width:100%;
+    padding:30px 24px 24px;
+    text-align:center;
+    box-shadow:0 24px 60px -18px rgba(11,37,69,.4);
+    animation:popIn .25s ease;
+  }
+  @keyframes popIn{
+    from{transform:scale(.92);opacity:0;}
+    to{transform:scale(1);opacity:1;}
+  }
+  .success-icon{
+    width:64px;height:64px;border-radius:50%;
+    background:linear-gradient(135deg, #1a7a3e, #2fae5c);
+    color:#fff;font-size:30px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 16px;
+    box-shadow:0 10px 22px -8px rgba(26,122,62,.5);
+  }
+  .success-box h3{
+    font-size:18px;margin:0 0 6px;color:var(--navy);font-weight:800;
+  }
+  .success-name{
+    font-size:14px;color:var(--muted);margin-bottom:18px;font-weight:600;
+  }
+  .ref-box{
+    background:linear-gradient(135deg, #fdf6e3, #fbeec1);
+    border:1.5px solid var(--gold);
+    border-radius:14px;
+    padding:14px 16px;
+    margin-bottom:14px;
+  }
+  .ref-label{
+    display:block;font-size:12px;color:#8a6d1a;font-weight:700;margin-bottom:6px;
+  }
+  .ref-value{
+    display:block;font-size:20px;font-weight:800;color:var(--navy);
+    letter-spacing:.5px;direction:ltr;
+  }
+  .success-meta{
+    font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.8;
+  }
+  .success-note{
+    font-size:12.5px;color:#8a93a3;background:#f3f5f8;
+    border-radius:12px;padding:10px 14px;margin-bottom:18px;line-height:1.8;
+  }
 </style>
 </head>
 <body>
@@ -851,7 +907,13 @@ form.addEventListener('submit', async (e) => {
   }catch(err){
     console.error(err);
     formMsg.className = 'msg err';
-    formMsg.textContent = 'حدث خطأ أثناء الإرسال. تحقق من الاتصال بالإنترنت وحاول مرة أخرى.';
+    if (err.code === 'permission-denied'){
+      formMsg.textContent = 'تعذّر الإرسال بسبب إعدادات الصلاحيات في قاعدة البيانات. الرجاء إبلاغ إدارة المدرسة بهذه المشكلة التقنية.';
+    } else if (err.code === 'unavailable' || err.code === 'deadline-exceeded'){
+      formMsg.textContent = '⚠ الاتصال بالخادم كان بطيئاً أو انقطع أثناء الإرسال. قد تكون بياناتك وصلت فعلاً رغم هذه الرسالة — تحقق من لوحة الإدارة قبل إعادة الإرسال حتى لا تتكرر بياناتك. إذا لم تكن موجودة، أعد المحاولة.';
+    } else {
+      formMsg.textContent = 'حدث خطأ أثناء الإرسال (' + (err.code || err.message || 'غير معروف') + '). تحقق من الاتصال بالإنترنت وحاول مرة أخرى.';
+    }
     formMsg.style.display = 'block';
   }finally{
     submitBtn.disabled = false;
@@ -863,3 +925,4 @@ form.addEventListener('submit', async (e) => {
 
 </body>
 </html>
+
