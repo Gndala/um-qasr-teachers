@@ -799,8 +799,18 @@ function generateReferenceNumber(){
   return `UQ-${y}${m}${d}-${rand}`;
 }
 
+let isSubmitting = false;
+
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
+
+  if (isSubmitting){
+    formMsg.className = 'msg err';
+    formMsg.textContent = 'الاستمارة قيد الإرسال بالفعل، الرجاء الانتظار ولا تضغط أكثر من مرة.';
+    formMsg.style.display = 'block';
+    return;
+  }
+
   formMsg.className = 'msg';
   formMsg.style.display = 'none';
 
@@ -819,6 +829,7 @@ form.addEventListener('submit', async (e) => {
     return;
   }
 
+  isSubmitting = true;
   const unifiedCardVal = document.getElementById('unifiedCard').value.trim();
 
   submitBtn.disabled = true;
@@ -916,6 +927,7 @@ form.addEventListener('submit', async (e) => {
     }
     formMsg.style.display = 'block';
   }finally{
+    isSubmitting = false;
     submitBtn.disabled = false;
     submitBtn.textContent = 'إرسال الاستمارة ✔';
   }
