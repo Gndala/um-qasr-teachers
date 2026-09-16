@@ -638,6 +638,11 @@
 <script>
 const COLLECTION_NAME = "teachers";
 
+function esc(v){
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 let fb = null;
 window.addEventListener('firebase-ready', () => { fb = window.__fb; });
 
@@ -937,4 +942,3 @@ form.addEventListener('submit', async (e) => {
 
 </body>
 </html>
-
